@@ -1,0 +1,9 @@
+hydra-core==1.1.2
+inputtr==0.0.5
+Keras_Preprocessing==1.1.2
+numpy==1.19.5
+tensorflow==2.5.0
+tensorflow_gpu==2.5.0
+scipy==1.8.0
+Pillow==9.1.0
+wandb==0.12.14

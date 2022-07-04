@@ -1,0 +1,5 @@
+/venv
+/outputs
+/tensorboard
+/.idea
+mapping.txt

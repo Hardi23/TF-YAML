@@ -1,0 +1,108 @@
+opt:
+  preview: false
+  fallback: false
+
+hparams:
+  lr: 1e-3
+  optimizer: SGD
+  epochs: 50
+  batch_size: 2
+  val_split: 0.2
+
+# Applicable values are:
+# file: file to model
+# which will overwrite all other settings and load the model from a .h5 or .keras file
+#
+# architecture: Existing model to use
+#     name: has to be supplied e.g. VGG19
+#     specs: parameters when instantiating the model e.g. input_shape: (224, 224, 3)
+#     specs will be unpacked via ** operator
+#
+# output_layers: layer to apply to the end of the network (Required if passing include_top: False to model creation)
+# which will append the defined output layers to the network
+# instantiation of the layers happens by unpacking the given config via the ** operator
+# p.e. this will result in: Dense(units=256, activation="relu")
+#
+# full_training: If set to True will train the whole net -> update the pretrained weights
+#
+# for the prediction layer "units: ??classes" can be supplied which will be replaced by the class count in
+# the training set.
+# custom:
+#    layers:
+#      - InputLayer:
+#          input_shape: (224, 224, 3)
+#      - Flatten:
+#      - Dense:
+#          units: 1024
+#          activation: relu
+#      - Dense:
+#          units: 512
+#          activation: relu
+#      - Dropout:
+#          rate: 0.5
+#      - Dense:
+#          units: ??classes
+#          activation: softmax
+model:
+  full_training: false
+  architecture:
+    name: VGG19
+    specs:
+      input_shape: (224, 224, 3)
+      include_top: False
+      weights: imagenet
+  output_layers:
+    - AveragePooling2D:
+        pool_size: (7, 7)
+    - Flatten:
+    - Dense:
+        units: 256
+        activation: relu
+    - Dropout:
+        rate: 0.5
+    - Dense:
+        units: ??classes
+        activation: softmax
+
+paths:
+  training: E:\test
+  test: E:\bilder_bachelor_test
+  mapping_file: ${hydra:runtime.cwd}/mapping.txt
+
+# Definitions are restricted to all callbacks found in the tensorflow.python.keras.callbacks package
+# except for LearningRateScheduler all defined parameters have to match the parameters at creation time
+# of the given callback
+# p.e the TensorBoard callback will be created like so:
+# TensorBoard(log_dir=${hydra:runtime.cwd}/tensorboard/${now:%Y-%m-%d-%H-%M-%S})
+# which happens by unpacking the log_dir via the ** operator.
+callbacks:
+#  - WandbCallbackWrapper:
+#
+#  - LRLogger:
+#
+  - LearningRateScheduler:
+      function:
+        # when defining a custom function you have access to a subset of operations and variables, which include:
+        # default python operations, the tensorflow package addressed with "tf.",
+        # init_lr =     initial learning rate (as defined is hparams)
+        # epoch_count = the epoch count the training is supposed to run for (as defined is hparams)
+        # lr =          the current learning rate
+        # epoch =       the current epoch
+        # This also applies to the condition function, which can be used to delay the scheduler from changing
+        # the learning rate
+        rate_function: lr * tf.math.exp(-0.1)
+        condition: epoch >= 6 and epoch % 2 == 0
+      verbose: 1
+  - ModelCheckpoint:
+     filepath: models/vgg19-{epoch:03d}-acc-{val_categorical_accuracy:.5f}-sgd.h5
+     verbose: 1
+     monitor: val_categorical_accuracy
+     mode: max
+     save_best_only: true
+  - EarlyStopping:
+     patience: 5
+     mode: min
+     monitor: val_loss
+     verbose: 1
+  - TensorBoard:
+     log_dir: ${hydra:runtime.cwd}/tensorboard/${now:%Y-%m-%d-%H-%M-%S}
